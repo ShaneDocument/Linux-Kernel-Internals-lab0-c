@@ -47,13 +47,16 @@ bool q_insert_head(queue_t *q, char *s)
     if (q == NULL) {
         return false;
     }
-    list_ele_t *newh;
-    newh = malloc(sizeof(list_ele_t));
+    list_ele_t *newh = malloc(sizeof(list_ele_t));
     if (newh == NULL) {
         return false;
     }
     size_t strSize = strlen(s) + 1;
     newh->value = malloc(sizeof(char) * strSize);
+    if (!newh->value) {
+        free(newh);
+        return false;
+    }
     snprintf(newh->value, strSize, "%s", s);
     q->size++;
     if (!q->tail) {
@@ -81,6 +84,10 @@ bool q_insert_tail(queue_t *q, char *s)
         return false;
     size_t strSize = strlen(s) + 1;
     newt->value = malloc(sizeof(char) * strSize);
+    if (!newt->value) {
+        free(newt);
+        return false;
+    }
     snprintf(newt->value, strSize, "%s", s);
     q->size++;
     if (!q->tail) {
@@ -112,10 +119,10 @@ bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
     list_ele_t *rmvtarget = q->head;
     q->head = q->head->next;
     if (sp) {
-        size_t slen = strlen(rmvtarget->value);
-        size_t spSize = (bufsize > slen) ? bufsize - 1 : slen;
+        size_t slen = strlen(rmvtarget->value) + 1;
+        size_t spSize = (bufsize > slen) ? slen : bufsize - 1;
         memset(sp, '\0', spSize + 1);
-        snprintf(sp, spSize, "%s", rmvtarget->value);
+        snprintf(sp, spSize + 1, "%s", rmvtarget->value);
     }
     free(rmvtarget->value);
     free(rmvtarget);
@@ -163,7 +170,60 @@ void q_reverse(queue_t *q)
     q->tail = tmp;
     q->tail->next = NULL;
 }
-
+list_ele_t *merge(queue_t *q, list_ele_t *headA, list_ele_t *headB)
+{
+    list_ele_t *tmp;
+    list_ele_t *head;
+    if (strcmp(headB->value, headA->value) > 0) {
+        tmp = headA;
+        headA = headA->next;
+    } else {
+        tmp = headB;
+        headB = headB->next;
+    }
+    head = tmp;
+    while (headA && headB) {
+        if (strcmp(headB->value, headA->value) > 0) {
+            tmp->next = headA;
+            tmp = tmp->next;
+            headA = headA->next;
+        } else {
+            tmp->next = headB;
+            tmp = tmp->next;
+            headB = headB->next;
+        }
+    }
+    if (headA) {
+        tmp->next = headA;
+        while (headA->next) {
+            headA = headA->next;
+        }
+        q->tail = headA;
+    } else if (headB) {
+        tmp->next = headB;
+        while (headB->next) {
+            headB = headB->next;
+        }
+        q->tail = headB;
+    }
+    return head;
+}
+list_ele_t *mergeSort(queue_t *q, list_ele_t *head)
+{
+    if (!head || !head->next)
+        return head;
+    list_ele_t *fast = head->next;
+    list_ele_t *slow = head;
+    while (fast && fast->next) {
+        fast = fast->next->next;
+        slow = slow->next;
+    }
+    fast = slow->next;
+    slow->next = NULL;
+    list_ele_t *headA = mergeSort(q, head);
+    list_ele_t *headB = mergeSort(q, fast);
+    return merge(q, headA, headB);
+}
 /*
  * Sort elements of queue in ascending order
  * No effect if q is NULL or empty. In addition, if q has only one
@@ -171,6 +231,9 @@ void q_reverse(queue_t *q)
  */
 void q_sort(queue_t *q)
 {
-    /* TODO: You need to write the code for this function */
-    /* TODO: Remove the above comment when you are about to implement. */
+    if (!q)
+        return;
+    if (q->size <= 1)
+        return;
+    q->head = mergeSort(q, q->head);
 }
